@@ -1,5 +1,6 @@
 import { SettingsModel } from '../db/settings-model';
 import { DnsProvider } from '../providers/ddns-provider';
+import { timestamp } from '../utils';
 import { getPublicIP } from './ip-fetcher';
 
 export class DdnsManager {
@@ -24,13 +25,13 @@ export class DdnsManager {
     const currentIp = await getPublicIP(settings.ipEndpoint);
 
     if (currentIp !== settings.lastIp) {
-      console.log(`[DDNS] IP changed: ${settings.lastIp} -> ${currentIp}`);
+      console.log(`[${timestamp()}] [DDNS] IP changed: ${settings.lastIp} -> ${currentIp}`);
       await this.provider.updateRecords(settings.domain, settings.subdomains, currentIp);
       settings.lastIp = currentIp;
       settings.lastUpdated = new Date();
       await settings.save();
     } else {
-      console.log(`[DDNS] IP unchanged (${currentIp})`);
+      console.log(`[${timestamp()}] [DDNS] IP unchanged (${currentIp})`);
     }
   }
 }
