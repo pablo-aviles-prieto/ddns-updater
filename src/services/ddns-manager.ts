@@ -1,5 +1,4 @@
 import { DatabaseAdapter } from '../db/database-adapter';
-import { SettingsModel } from '../db/mongodb/settings-model';
 import { DnsProvider } from '../providers/ddns-provider';
 import { timestamp } from '../utils';
 import { getPublicIP } from './ip-fetcher';
@@ -29,7 +28,7 @@ export class DdnsManager {
 
     if (currentIp !== settings.lastIp) {
       console.log(`[${timestamp()}] [DDNS] IP changed: ${settings.lastIp} -> ${currentIp}`);
-      await this.provider.updateRecords(settings.domain, settings.subdomains, currentIp);
+      await this.provider.handleRecords(settings.domain, settings.subdomains, currentIp);
       settings.lastIp = currentIp;
       await this.db.updateSettings(settings);
     } else {

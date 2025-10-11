@@ -1,5 +1,4 @@
 import cron from 'node-cron';
-import mongoose from 'mongoose';
 import { PorkbunProvider } from './providers/porkbun-provider';
 import { DdnsManager } from './services/ddns-manager';
 import { withRetry } from './utils';
@@ -22,13 +21,13 @@ async function runDdnsUpdate(manager: DdnsManager): Promise<void> {
 async function main() {
   try {
     // Initialize database adapter
-    const db = new MongoDBAdapter(process.env.MONGODB_URI!);
+    const db = new MongoDBAdapter(process.env.DB_URI!);
     await connectToDatabase(db);
 
     // Initialize DNS provider
     const provider = new PorkbunProvider({
-      apiKey: process.env.PORKBUN_API_KEY!,
-      secretKey: process.env.PORKBUN_SECRET_KEY!,
+      apiKey: process.env.DNS_PROVIDER_API_KEY!,
+      secretKey: process.env.DNS_PROVIDER_SECRET_KEY!,
     });
 
     // Initialize DDNS manager
