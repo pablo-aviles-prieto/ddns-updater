@@ -1,23 +1,26 @@
-import { SettingsModel } from '../db/settings-model';
+import { DatabaseAdapter } from '../db/database-adapter';
+import { SettingsModel } from '../db/mongodb/settings-model';
 import { DnsProvider } from '../providers/ddns-provider';
 import { timestamp } from '../utils';
 import { getPublicIP } from './ip-fetcher';
 
 export class DdnsManager {
   private provider: DnsProvider;
+  private db: DatabaseAdapter;
 
-  constructor(provider: DnsProvider) {
+  constructor(provider: DnsProvider, db: DatabaseAdapter) {
     this.provider = provider;
+    this.db = db;
   }
 
   async run() {
-    let settings = await SettingsModel.findOne();
+    let settings = await this.db.getSettings();
     if (!settings) {
       const defaultSubdomains = process.env.DEFAULT_SUBDOMAINS?.split(',') || [];
-      settings = await SettingsModel.create({
-        domain: process.env.DEFAULT_DOMAIN,
+      settings = await this.db.createSettings({
+        domain: process.env.DEFAULT_DOMAIN || 'example.com',
         subdomains: defaultSubdomains,
-        ipEndpoint: process.env.DEFAULT_IP_ENDPOINT,
+        ipEndpoint: process.env.DEFAULT_IP_ENDPOINT || 'https://api.ipify.org',
         lastIp: '',
       });
     }
@@ -28,8 +31,7 @@ export class DdnsManager {
       console.log(`[${timestamp()}] [DDNS] IP changed: ${settings.lastIp} -> ${currentIp}`);
       await this.provider.updateRecords(settings.domain, settings.subdomains, currentIp);
       settings.lastIp = currentIp;
-      settings.lastUpdated = new Date();
-      await settings.save();
+      await this.db.updateSettings(settings);
     } else {
       console.log(`[${timestamp()}] [DDNS] IP unchanged (${currentIp})`);
     }

@@ -2,17 +2,55 @@ import cron from 'node-cron';
 import mongoose from 'mongoose';
 import { PorkbunProvider } from './providers/porkbun-provider';
 import { DdnsManager } from './services/ddns-manager';
+import { withRetry } from './utils';
+import { DatabaseAdapter } from './db/database-adapter';
+import { MongoDBAdapter } from './db/mongodb/mongoose-adapter';
 
-// TODO: Improve timeout handling and retries
-await mongoose.connect(process.env.MONGODB_URI!);
+async function connectToDatabase(db: DatabaseAdapter): Promise<void> {
+  await withRetry(
+    () => db.connect(),
+    { maxAttempts: 5, delayMs: 2000, backoffMultiplier: 2 },
+    'Database Connection'
+  );
+  console.log('✓ Connected to database');
+}
 
-const provider = new PorkbunProvider({
-  apiKey: process.env.PORKBUN_API_KEY!,
-  secretKey: process.env.PORKBUN_SECRET_KEY!,
-});
+async function runDdnsUpdate(manager: DdnsManager): Promise<void> {
+  await withRetry(() => manager.run(), { maxAttempts: 3, delayMs: 5000 }, 'DDNS Update');
+}
 
-const manager = new DdnsManager(provider);
+async function main() {
+  try {
+    // Initialize database adapter
+    const db = new MongoDBAdapter(process.env.MONGODB_URI!);
+    await connectToDatabase(db);
 
-await manager.run();
+    // Initialize DNS provider
+    const provider = new PorkbunProvider({
+      apiKey: process.env.PORKBUN_API_KEY!,
+      secretKey: process.env.PORKBUN_SECRET_KEY!,
+    });
 
-cron.schedule('*/10 * * * *', () => manager.run());
+    // Initialize DDNS manager
+    const manager = new DdnsManager(provider, db);
+
+    // Initial run with retry
+    await runDdnsUpdate(manager);
+
+    // Schedule periodic updates
+    cron.schedule('*/10 * * * *', async () => {
+      try {
+        await runDdnsUpdate(manager);
+      } catch (error) {
+        console.error('Scheduled DDNS update failed:', error);
+      }
+    });
+
+    console.log('✓ DDNS service started. Updates scheduled every 10 minutes.');
+  } catch (error) {
+    console.error('Fatal error during startup:', error);
+    process.exit(1);
+  }
+}
+
+main();
