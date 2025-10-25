@@ -1,4 +1,3 @@
-import cron from 'node-cron';
 import { PorkbunProvider } from './providers/porkbun-provider';
 import { DdnsManager } from './services/ddns-manager';
 import { withRetry } from './utils';
@@ -33,19 +32,9 @@ async function main() {
     // Initialize DDNS manager
     const manager = new DdnsManager(provider, db);
 
-    // Initial run with retry
     await runDdnsUpdate(manager);
 
-    // Schedule periodic updates
-    cron.schedule('*/10 * * * *', async () => {
-      try {
-        await runDdnsUpdate(manager);
-      } catch (error) {
-        console.error('Scheduled DDNS update failed:', error);
-      }
-    });
-
-    console.log('✓ DDNS service started. Updates scheduled every 10 minutes.');
+    console.log('✓ DDNS service executed.');
   } catch (error) {
     console.error('Fatal error during startup:', error);
     process.exit(1);
