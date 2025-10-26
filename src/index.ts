@@ -18,9 +18,10 @@ async function runDdnsUpdate(manager: DdnsManager): Promise<void> {
 }
 
 async function main() {
+  let db: MongoDBAdapter | null = null;
   try {
     // Initialize database adapter
-    const db = new MongoDBAdapter(process.env.DB_URI!);
+    db = new MongoDBAdapter(process.env.DB_URI!);
     await connectToDatabase(db);
 
     // Initialize DNS provider
@@ -37,7 +38,15 @@ async function main() {
     console.log('✓ DDNS service executed.');
   } catch (error) {
     console.error('Fatal error during startup:', error);
-    process.exit(1);
+    process.exitCode = 1;
+  } finally {
+    if (db) {
+      try {
+        await db.disconnect();
+      } catch (err) {
+        console.error('Error disconnecting DB:', err);
+      }
+    }
   }
 }
 
